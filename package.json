@@ -1,0 +1,11 @@
+{
+  "name": "zebra.tools",
+  "version": "1.0.0",
+  "description": "Tooling for working with Zebra printers.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "theandrewasung",
+  "license": "ISC"
+}
