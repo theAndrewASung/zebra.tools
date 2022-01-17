@@ -26,12 +26,17 @@ import {
 } from './zebra-zpl-commands';
 
 type orientation = 'normal'|'top-down'|'upside-down'|'bottom-up';
-const OrientationFromHumanReadable =
+const OrientationFromHumanReadable : { [key : string] : string } =
 {
     'normal'      : 'N',
     'top-down'    : 'R',
     'upside-down' : 'I',
     'bottom-up'   : 'B',
+};
+const ColorFromHumanReadable : { [key : string] : string } =
+{
+    'black' : 'B',
+    'white' : 'W',    
 };
 
 export class ZplLabel
@@ -140,25 +145,27 @@ export class ZplLabel
      * Adds a line to this label. Does the logic to determine whether the line is
      * vertical, diagonal, or horizontal
      * 
-     * @param x - x-axis location (distance from left)
-     * @param y - y-axis location (distance from top)
-     * @param width - width of the box
-     * @param height - height of the box
-     * @param options.borderThickness - thickness of the border
+     * @param x1 - starting x-axis location (distance from left)
+     * @param y1 - starting y-axis location (distance from top)
+     * @param x2 - starting x-axis location (distance from left)
+     * @param y2 - starting y-axis location (distance from top)
+     * @param options.color     - color of the line
+     * @param options.thickness - thickness of the line
      * 
      * @returns this ZPLLabel object, for chaining
      */
-    line(x1 : number, y1 : number, x2 : number, y2 : number, options? : {
-        borderThickness? : number,
-    }) {
-        let { borderThickness } = options || {};
-        borderThickness = borderThickness || 1;
+    line(x1 : number, y1 : number, x2 : number, y2 : number, options : {
+        color?     : string;
+        thickness? : number;
+    } = {}) {
+        const thickness = options.thickness || 1;
+        const color     = ColorFromHumanReadable[options.color] || 'B';
 
         const zpl = [];
         zpl.push(ZplFieldOrigin.apply(this.toDots(Math.min(x1, x2)), this.toDots(Math.min(y1, y2)), 0)); // align from left for ease
 
         if (x1 === x2 || y1 === y2) { // vertical or horizontal lines
-            zpl.push(ZplGraphicBox.apply(this.toDots(x2 - x1), this.toDots(y2 - y1), borderThickness, 'B', 0));
+            zpl.push(ZplGraphicBox.apply(this.toDots(x2 - x1), this.toDots(y2 - y1), thickness, color, 0));
         }
         else { // diagonal lines
             const width  : number = x2 - x1;
@@ -166,7 +173,7 @@ export class ZplLabel
             
             const orientation = (width < 0 && height < 0 || width > 0 && height > 0) ? 'L' : 'R';
 
-            zpl.push(ZplGraphicDiagonalLine.apply(this.toDots(Math.abs(width)), this.toDots(Math.abs(height)), borderThickness, 'B', orientation));
+            zpl.push(ZplGraphicDiagonalLine.apply(this.toDots(Math.abs(width)), this.toDots(Math.abs(height)), thickness, color, orientation));
         }
 
         zpl.push(ZplFieldSeparator.apply());
