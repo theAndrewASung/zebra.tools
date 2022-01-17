@@ -19,6 +19,7 @@ import {
     ZplComment,
 
     // Graphics
+    ZplGraphicBox,
     ZplGraphicDiagonalLine,
 } from './zebra-zpl-commands';
 
@@ -166,6 +167,35 @@ export class ZplLabel
             zpl.push(ZplGraphicDiagonalLine.apply(this.toDots(Math.abs(width)), this.toDots(Math.abs(height)), borderThickness, 'B', orientation));
         }
 
+        zpl.push(ZplFieldSeparator.apply());
+
+        this.commands.push(zpl.join(''));
+        return this;
+    }
+
+    /**
+     * Adds a box to this label.
+     * 
+     * @param x - x-axis location (distance from left)
+     * @param y - y-axis location (distance from top)
+     * @param width - width of the box
+     * @param height - height of the box
+     * @param options.borderThickness - thickness of the border
+     * @param options.borderRadius - rounds the corners
+     * 
+     * @returns this ZPLLabel object, for chaining
+     */
+    box(x : number, y : number, width : number, height : number, options? : {
+        borderThickness? : number,
+        borderRadius?    : number;
+    }) {
+        let { borderThickness, borderRadius } = options || {};
+        borderThickness = borderThickness || 1;
+        borderRadius    = borderRadius || 0;
+
+        const zpl = [];
+        zpl.push(ZplFieldOrigin.apply(this.toDots(x), this.toDots(y), 0)); // align from left for ease
+        zpl.push(ZplGraphicBox.apply(this.toDots(width), this.toDots(height), borderThickness, 'B', borderRadius));
         zpl.push(ZplFieldSeparator.apply());
 
         this.commands.push(zpl.join(''));
