@@ -21,6 +21,8 @@ import {
     // Graphics
     ZplGraphicBox,
     ZplGraphicDiagonalLine,
+    ZplGraphicCircle,
+    ZplGraphicEllipse,
 } from './zebra-zpl-commands';
 
 type orientation = 'normal'|'top-down'|'upside-down'|'bottom-up';
@@ -196,6 +198,43 @@ export class ZplLabel
         const zpl = [];
         zpl.push(ZplFieldOrigin.apply(this.toDots(x), this.toDots(y), 0)); // align from left for ease
         zpl.push(ZplGraphicBox.apply(this.toDots(width), this.toDots(height), borderThickness, 'B', borderRadius));
+        zpl.push(ZplFieldSeparator.apply());
+
+        this.commands.push(zpl.join(''));
+        return this;
+    }
+
+    /**
+     * Adds a ellipse to this label.
+     * 
+     * @param x - x-axis location (center or distance from left, depending on options.positioning)
+     * @param y - y-axis location (center or distance from top, depending on options.positioning)
+     * @param width - width of the ellipse
+     * @param height - height of the ellipse
+     * @param options.positioning - how to position the ellipse
+     * @param options.borderThickness - thickness of the border
+     * 
+     * @returns this ZPLLabel object, for chaining
+     */
+    ellipse(x : number, y : number, width : number, height : number, options? : {
+        positioning?     : 'center'|'top-left',
+        borderThickness? : number,
+    }) {
+        let { positioning, borderThickness } = options || {};
+        borderThickness = borderThickness || 1;
+
+        const left = x + (positioning === 'top-left' ? 0 : -(width  / 2));
+        const top  = y + (positioning === 'top-left' ? 0 : -(height / 2));
+
+        const zpl = [];
+        zpl.push(ZplFieldOrigin.apply(this.toDots(left), this.toDots(top), 0)); // align from left for ease
+
+        if (width === height) {
+            zpl.push(ZplGraphicCircle.apply(this.toDots(width), borderThickness, 'B'));
+        }
+        else {
+            zpl.push(ZplGraphicEllipse.apply(this.toDots(width), this.toDots(height), borderThickness, 'B'));
+        }
         zpl.push(ZplFieldSeparator.apply());
 
         this.commands.push(zpl.join(''));
