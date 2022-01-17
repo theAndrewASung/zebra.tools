@@ -17,6 +17,9 @@ import {
     // Fonts and Text
     ZplScalableFont,
     ZplComment,
+
+    // Graphics
+    ZplGraphicDiagonalLine,
 } from './zebra-zpl-commands';
 
 type orientation = 'normal'|'top-down'|'upside-down'|'bottom-up';
@@ -124,6 +127,45 @@ export class ZplLabel
         }
 
         zpl.push(ZplFieldData.apply(text));
+        zpl.push(ZplFieldSeparator.apply());
+
+        this.commands.push(zpl.join(''));
+        return this;
+    }
+
+    /**
+     * Adds a line to this label. Does the logic to determine whether the line is
+     * vertical, diagonal, or horizontal
+     * 
+     * @param x - x-axis location (distance from left)
+     * @param y - y-axis location (distance from top)
+     * @param width - width of the box
+     * @param height - height of the box
+     * @param options.borderThickness - thickness of the border
+     * 
+     * @returns this ZPLLabel object, for chaining
+     */
+    line(x1 : number, y1 : number, x2 : number, y2 : number, options? : {
+        borderThickness? : number,
+    }) {
+        let { borderThickness } = options || {};
+        borderThickness = borderThickness || 1;
+
+        const zpl = [];
+        zpl.push(ZplFieldOrigin.apply(this.toDots(Math.min(x1, x2)), this.toDots(Math.min(y1, y2)), 0)); // align from left for ease
+
+        if (x1 === x2 || y1 === y2) { // vertical or horizontal lines
+            zpl.push(ZplGraphicBox.apply(this.toDots(x2 - x1), this.toDots(y2 - y1), borderThickness, 'B', 0));
+        }
+        else { // diagonal lines
+            const width  : number = x2 - x1;
+            const height : number = y2 - y1;
+            
+            const orientation = (width < 0 && height < 0 || width > 0 && height > 0) ? 'L' : 'R';
+
+            zpl.push(ZplGraphicDiagonalLine.apply(this.toDots(Math.abs(width)), this.toDots(Math.abs(height)), borderThickness, 'B', orientation));
+        }
+
         zpl.push(ZplFieldSeparator.apply());
 
         this.commands.push(zpl.join(''));
