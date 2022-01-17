@@ -189,22 +189,26 @@ export class ZplLabel
      * @param y - y-axis location (distance from top)
      * @param width - width of the box
      * @param height - height of the box
+     * @param options.filled - fills the box with a solid color
+     * @param options.color - box or border color
      * @param options.borderThickness - thickness of the border
      * @param options.borderRadius - rounds the corners
      * 
      * @returns this ZPLLabel object, for chaining
      */
-    box(x : number, y : number, width : number, height : number, options? : {
-        borderThickness? : number,
+    box(x : number, y : number, width : number, height : number, options : {
+        filled?          : boolean;
+        color?           : string;
+        borderThickness? : number;
         borderRadius?    : number;
-    }) {
-        let { borderThickness, borderRadius } = options || {};
-        borderThickness = borderThickness || 1;
-        borderRadius    = borderRadius || 0;
+    } = {}) {
+        const borderThickness = options.filled ? this.toDots(Math.min(width, height)) : (options.borderThickness || 1);
+        const borderRadius    = options.borderRadius || 0;
+        const borderColor     = ColorFromHumanReadable[options.color] || 'B';
 
         const zpl = [];
         zpl.push(ZplFieldOrigin.apply(this.toDots(x), this.toDots(y), 0)); // align from left for ease
-        zpl.push(ZplGraphicBox.apply(this.toDots(width), this.toDots(height), borderThickness, 'B', borderRadius));
+        zpl.push(ZplGraphicBox.apply(this.toDots(width), this.toDots(height), borderThickness, borderColor, borderRadius));
         zpl.push(ZplFieldSeparator.apply());
 
         this.commands.push(zpl.join(''));
@@ -218,29 +222,33 @@ export class ZplLabel
      * @param y - y-axis location (center or distance from top, depending on options.positioning)
      * @param width - width of the ellipse
      * @param height - height of the ellipse
+     * @param options.filled - fills the ellipse with a solid color
+     * @param options.color - ellipse or border color
      * @param options.positioning - how to position the ellipse
      * @param options.borderThickness - thickness of the border
      * 
      * @returns this ZPLLabel object, for chaining
      */
-    ellipse(x : number, y : number, width : number, height : number, options? : {
+    ellipse(x : number, y : number, width : number, height : number, options : {
+        filled?          : boolean;
+        color?           : string;
         positioning?     : 'center'|'top-left',
         borderThickness? : number,
-    }) {
-        let { positioning, borderThickness } = options || {};
-        borderThickness = borderThickness || 1;
+    } = {}) {
+        const borderThickness = options.filled ? this.toDots(Math.min(width, height)) : (options.borderThickness || 1);
+        const borderColor     = ColorFromHumanReadable[options.color] || 'B';
 
-        const left = x + (positioning === 'top-left' ? 0 : -(width  / 2));
-        const top  = y + (positioning === 'top-left' ? 0 : -(height / 2));
+        const centerAlign = (options.positioning !== 'top-left');
+        const left = x + (centerAlign ? -(width  / 2) : 0);
+        const top  = y + (centerAlign ? -(height / 2) : 0);
 
         const zpl = [];
         zpl.push(ZplFieldOrigin.apply(this.toDots(left), this.toDots(top), 0)); // align from left for ease
-
         if (width === height) {
-            zpl.push(ZplGraphicCircle.apply(this.toDots(width), borderThickness, 'B'));
+            zpl.push(ZplGraphicCircle.apply(this.toDots(width), borderThickness, borderColor));
         }
         else {
-            zpl.push(ZplGraphicEllipse.apply(this.toDots(width), this.toDots(height), borderThickness, 'B'));
+            zpl.push(ZplGraphicEllipse.apply(this.toDots(width), this.toDots(height), borderThickness, borderColor));
         }
         zpl.push(ZplFieldSeparator.apply());
 
