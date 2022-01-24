@@ -128,8 +128,8 @@ describe('ZplCommandSchema', () =>
                 { key : 'z', optional : true, type : 'string' },
             ]);
 
-            expect(schema.apply('a','b','c')).toEqual('^AZa,b,c');
-            expect(schema.apply('LONG','KK','TeST')).toEqual('^AZLONG,KK,TeST');
+            expect(schema.applyAsString('a','b','c')).toEqual('^AZa,b,c');
+            expect(schema.applyAsString('LONG','KK','TeST')).toEqual('^AZLONG,KK,TeST');
         });
 
         test('uses empty string when parameters are not provided', () =>
@@ -140,8 +140,8 @@ describe('ZplCommandSchema', () =>
                 { key : 'z', optional : true, type : 'string' },
             ]);
 
-            expect(schema.apply()).toEqual('^AZ,,');
-            expect(schema.apply(null,null,'c')).toEqual('^AZ,,c');
+            expect(schema.applyAsString()).toEqual('^AZ,,');
+            expect(schema.applyAsString(null,null,'c')).toEqual('^AZ,,c');
         });
 
         test('uses provided delimiters in parameters', () =>
@@ -153,8 +153,8 @@ describe('ZplCommandSchema', () =>
                 { key : 'x', optional : true, type : 'string', delimiter : ';' },
             ]);
 
-            expect(schema.apply('a','b','c','d')).toEqual('^Aab:c.d');
-            expect(schema.apply('@','LONG','KK','TeST')).toEqual('^A@LONG:KK.TeST');
+            expect(schema.applyAsString('a','b','c','d')).toEqual('^Aab:c.d');
+            expect(schema.applyAsString('@','LONG','KK','TeST')).toEqual('^A@LONG:KK.TeST');
         });
     });
 

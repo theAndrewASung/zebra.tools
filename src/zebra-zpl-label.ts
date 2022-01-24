@@ -1,6 +1,8 @@
-import { CSSPixelsToDots, inchesToDots } from './utils/utils-units';
 import { QRErrorCorrectionLevel, QRDataInputMode, QRCodeSizesByVersion, getQRCodeVersion, getQRCodeDataInputMode } from './utils/utils-qr-code';
+import { CSSPixelsToDots, inchesToDots } from './utils/utils-units';
+import { concatUint8Arrays } from './utils/utils-buffers';
 
+import { ZplCommandSet } from './zebra-zpl-schema';
 import {
     ZplStartFormat,
     ZplEndFormat,
@@ -42,7 +44,7 @@ const ColorFromHumanReadable : { [key : string] : string } =
 
 export class ZplLabel
 {
-    private commands : string[];
+    private commandSets     : ZplCommandSet[];
     private lastOrientation : string;
 
     private unit : void | string;
@@ -60,7 +62,7 @@ export class ZplLabel
         width?  : number;
         height? : number;
     }) {
-        this.commands = [];
+        this.commandSets = [];
         this.lastOrientation = null;
 
         const { unit, dpi } = options || {};
@@ -70,7 +72,13 @@ export class ZplLabel
         this.dpi  = dpi  || null;
     }
 
-    private toDots(x : number) : number {
+    /**
+     * Private helper to convert from the specific units to dots
+     * 
+     * @param x - a number
+     * @returns - number in dots
+     */
+    private _toDots(x : number) : number {
         const dpi : number = this.dpi || 300;
 
         switch (this.unit) {
@@ -93,7 +101,10 @@ export class ZplLabel
      * @returns this ZPLLabel object, for chaining
      */
     comment(comment : string) {
-        this.commands.push(ZplComment.apply(comment));
+        const zpl = new ZplCommandSet();
+        zpl.add(ZplComment, comment);
+
+        this.commandSets.push(zpl);
         return this;
     }
 
@@ -122,26 +133,26 @@ export class ZplLabel
         const invertColor = options.invertColor;
         const font        = options.font;
 
-        const zpl = [];
-        zpl.push(ZplFieldOrigin.apply(this.toDots(x), this.toDots(y), 0)); // align from left for ease
-        if (invertColor) zpl.push(ZplFieldReversePrint.apply());
+        const zpl = new ZplCommandSet();
+        zpl.add(ZplFieldOrigin, this._toDots(x), this._toDots(y), 0); // align from left for ease
+        if (invertColor) zpl.add(ZplFieldReversePrint);
         if (font) {
             if (typeof font === 'string') {
-                zpl.push(ZplScalableFont.apply(font, orientation));
+                zpl.add(ZplScalableFont, font, orientation);
             }
             else {
-                zpl.push(ZplScalableFont.apply(font.name, orientation, this.toDots(font.width), this.toDots(font.width || font.height)));
+                zpl.add(ZplScalableFont, font.name, orientation, this._toDots(font.width), this._toDots(font.width || font.height));
             }
         }
         else if (this.lastOrientation !== orientation) {
-            zpl.push(ZplFieldOrientation.apply(orientation));
+            zpl.add(ZplFieldOrientation, orientation);
             this.lastOrientation = orientation;
         }
 
-        zpl.push(ZplFieldData.apply(text));
-        zpl.push(ZplFieldSeparator.apply());
+        zpl.add(ZplFieldData, text);
+        zpl.add(ZplFieldSeparator);
 
-        this.commands.push(zpl.join(''));
+        this.commandSets.push(zpl);
         return this;
     }
 
@@ -168,12 +179,12 @@ export class ZplLabel
         const invertColor = options.invertColor;
         const thickness   = options.thickness || 1;
 
-        const zpl = [];
-        zpl.push(ZplFieldOrigin.apply(this.toDots(Math.min(x1, x2)), this.toDots(Math.min(y1, y2)), 0)); // align from left for ease
-        if (invertColor) zpl.push(ZplFieldReversePrint.apply());
+        const zpl = new ZplCommandSet();
+        zpl.add(ZplFieldOrigin, this._toDots(Math.min(x1, x2)), this._toDots(Math.min(y1, y2)), 0); // align from left for ease
+        if (invertColor) zpl.add(ZplFieldReversePrint);
 
         if (x1 === x2 || y1 === y2) { // vertical or horizontal lines
-            zpl.push(ZplGraphicBox.apply(this.toDots(x2 - x1), this.toDots(y2 - y1), thickness, color, 0));
+            zpl.add(ZplGraphicBox, this._toDots(x2 - x1), this._toDots(y2 - y1), thickness, color, 0);
         }
         else { // diagonal lines
             const width  : number = x2 - x1;
@@ -181,11 +192,11 @@ export class ZplLabel
             
             const orientation = (width < 0 && height < 0 || width > 0 && height > 0) ? 'L' : 'R';
 
-            zpl.push(ZplGraphicDiagonalLine.apply(this.toDots(Math.abs(width)), this.toDots(Math.abs(height)), thickness, color, orientation));
+            zpl.add(ZplGraphicDiagonalLine, this._toDots(Math.abs(width)), this._toDots(Math.abs(height)), thickness, color, orientation);
         }
-        zpl.push(ZplFieldSeparator.apply());
+        zpl.add(ZplFieldSeparator);
 
-        this.commands.push(zpl.join(''));
+        this.commandSets.push(zpl);
         return this;
     }
 
@@ -212,17 +223,17 @@ export class ZplLabel
         borderRadius?    : number;
     } = {}) {
         const invertColor     = options.invertColor;
-        const borderThickness = options.filled ? this.toDots(Math.min(width, height)) : (options.borderThickness || 1);
+        const borderThickness = options.filled ? this._toDots(Math.min(width, height)) : (options.borderThickness || 1);
         const borderRadius    = options.borderRadius || 0;
         const borderColor     = ColorFromHumanReadable[options.color] || 'B';
 
-        const zpl = [];
-        zpl.push(ZplFieldOrigin.apply(this.toDots(x), this.toDots(y), 0)); // align from left for ease
-        if (invertColor) zpl.push(ZplFieldReversePrint.apply());
-        zpl.push(ZplGraphicBox.apply(this.toDots(width), this.toDots(height), borderThickness, borderColor, borderRadius));
-        zpl.push(ZplFieldSeparator.apply());
+        const zpl = new ZplCommandSet();
+        zpl.add(ZplFieldOrigin, this._toDots(x), this._toDots(y), 0); // align from left for ease
+        if (invertColor) zpl.add(ZplFieldReversePrint);
+        zpl.add(ZplGraphicBox, this._toDots(width), this._toDots(height), borderThickness, borderColor, borderRadius);
+        zpl.add(ZplFieldSeparator);
 
-        this.commands.push(zpl.join(''));
+        this.commandSets.push(zpl);
         return this;
     }
 
@@ -249,25 +260,25 @@ export class ZplLabel
         borderThickness? : number,
     } = {}) {
         const invertColor     = options.invertColor;
-        const borderThickness = options.filled ? this.toDots(Math.min(width, height)) : (options.borderThickness || 1);
+        const borderThickness = options.filled ? this._toDots(Math.min(width, height)) : (options.borderThickness || 1);
         const borderColor     = ColorFromHumanReadable[options.color] || 'B';
 
         const centerAlign = (options.positioning !== 'top-left');
         const left = x + (centerAlign ? -(width  / 2) : 0);
         const top  = y + (centerAlign ? -(height / 2) : 0);
 
-        const zpl = [];
-        zpl.push(ZplFieldOrigin.apply(this.toDots(left), this.toDots(top), 0)); // align from left for ease
-        if (invertColor) zpl.push(ZplFieldReversePrint.apply());
+        const zpl = new ZplCommandSet();
+        zpl.add(ZplFieldOrigin, this._toDots(left), this._toDots(top), 0); // align from left for ease
+        if (invertColor) zpl.add(ZplFieldReversePrint);
         if (width === height) {
-            zpl.push(ZplGraphicCircle.apply(this.toDots(width), borderThickness, borderColor));
+            zpl.add(ZplGraphicCircle, this._toDots(width), borderThickness, borderColor);
         }
         else {
-            zpl.push(ZplGraphicEllipse.apply(this.toDots(width), this.toDots(height), borderThickness, borderColor));
+            zpl.add(ZplGraphicEllipse, this._toDots(width), this._toDots(height), borderThickness, borderColor);
         }
-        zpl.push(ZplFieldSeparator.apply());
+        zpl.add(ZplFieldSeparator);
 
-        this.commands.push(zpl.join(''));
+        this.commandSets.push(zpl);
         return this;
     }
 
@@ -312,21 +323,34 @@ export class ZplLabel
             const version : number = getQRCodeVersion(dataInputMode, errorCorrectionLevel, size);
             const pixels  : number = QRCodeSizesByVersion[version];
 
-            const widthInDots  = this.toDots(maxSize);
+            const widthInDots  = this._toDots(maxSize);
             const dotsPerPixel = widthInDots / (1.0 * pixels);
 
             magnification = Math.min(10, Math.floor(dotsPerPixel));
         }
 
         const Y_PADDING = 10; // Implicit whitespace margin above the QR Code
-        const zpl = [];
-        zpl.push(ZplFieldOrigin.apply(this.toDots(x), this.toDots(y) - Y_PADDING, 0)); // align from left for ease
-        zpl.push(ZplQRCodeBarCode.apply('', 2, magnification, errorCorrectionLevel, maskValue));
-        zpl.push(ZplFieldData.apply(`${errorCorrectionLevel}${fieldDataMode}${text}`));
-        zpl.push(ZplFieldSeparator.apply());
+        const zpl = new ZplCommandSet();
+        zpl.add(ZplFieldOrigin, this._toDots(x), this._toDots(y) - Y_PADDING, 0); // align from left for ease
+        zpl.add(ZplQRCodeBarCode, '', 2, magnification, errorCorrectionLevel, maskValue);
+        zpl.add(ZplFieldData, `${errorCorrectionLevel}${fieldDataMode}${text}`);
+        zpl.add(ZplFieldSeparator);
 
-        this.commands.push(zpl.join(''));
+        this.commandSets.push(zpl);
         return this;
+    }
+
+    /**
+     * Computes the command as a buffer.
+     * 
+     * @returns the ZPL label as a command
+     */
+     toBuffer() : Uint8Array {
+        return concatUint8Arrays(
+            ZplStartFormat.applyAsBuffer(),
+            ...this.commandSets.map(zplCommandSet => zplCommandSet.toBuffer()),
+            ZplEndFormat.applyAsBuffer(),
+        );
     }
 
     /**
@@ -334,12 +358,11 @@ export class ZplLabel
      * 
      * @returns the ZPL label as a command
      */
-    toString()
-    {
+    toString() : string {
         return [
-            ZplStartFormat.apply(),
-            ...this.commands,
-            ZplEndFormat.apply(),
+            ZplStartFormat.applyAsString(),
+            ...this.commandSets.map(zplCommandSet => zplCommandSet.toString()),
+            ZplEndFormat.applyAsString(),
         ].join('\n');
     }
 }

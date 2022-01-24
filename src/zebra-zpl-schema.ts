@@ -1,4 +1,5 @@
 import { ZplType, ZplTypeIntegerRange, ZplTypeAlphanumericString } from './zebra-zpl-types';
+import { stringToUint8Array, concatUint8Arrays } from './utils/utils-buffers';
 
 /**
  * Set of expected types for the ZPL parameter schema.
@@ -34,10 +35,12 @@ export function validateZplParameterValue(type : ZplParameterType | ZplParameter
 	else if (type instanceof Set) {
 		if (!type.has(value)) return `should be one of ${[...type.values()].join(', ')}`;
 	}
-	else if (type instanceof ZplTypeIntegerRange || type instanceof ZplTypeAlphanumericString)
-	{
+	else if (type instanceof ZplTypeIntegerRange || type instanceof ZplTypeAlphanumericString) {
 		const error = type.validate(value);
 		if (error) return error;
+	}
+	else if (type === 'binary') {
+		if (!(value instanceof Uint8Array)) return  `should be an Uint8Array`;
 	}
 	else if (typeof type === 'string') {
 		if (typeof value !== type) return `should be of type ${type}`;
@@ -96,7 +99,51 @@ export class ZplCommandSchema {
 		if (Object.keys(errorsObject).length) return errorsObject;
 
 		return null;
+	}
 
+	private _apply(parameterValues : any[], includeBuffer? : boolean) {
+		const lastIndex = this.schema.length - 1;
+
+		let size = includeBuffer ? 0 : null;
+		const parameters = this.schema.map((schema, index) => {
+			const value     = parameterValues[index] || '';
+			const delimiter = (index === lastIndex) ? '' : (schema.delimiter === null || schema.delimiter === undefined ? ',' : schema.delimiter);
+
+			let uint8array : Uint8Array;
+			if (includeBuffer) {
+				if (value instanceof Uint8Array) uint8array = concatUint8Arrays(value, stringToUint8Array(delimiter));
+				else uint8array = stringToUint8Array(value.toString() + delimiter);
+	
+				if (uint8array) size += uint8array.length;
+			}
+
+			return { value, delimiter, uint8array };
+		});
+
+		return { parameters, size };
+	}
+
+	/**
+	 * Applies a set of arguments to this command's schema.
+	 * 
+	 * @param parameterValues - parameters, in order of the definition provided in the schema 
+	 * @returns a buffer (unit8array) representing the command with the given parameters
+	 */
+	applyAsBuffer(...parameterValues : any[]) : Uint8Array {
+		const { parameters, size } = this._apply(parameterValues, true);
+
+		const buffer = new Uint8Array(size + this.command.length);
+		buffer.set(stringToUint8Array(this.command), 0);
+
+		let index = this.command.length;
+		parameters.map((parameterParsed) => {
+			const { uint8array } = parameterParsed;
+			
+			buffer.set(uint8array, index);
+			index += uint8array.length;
+		});
+
+		return buffer;
 	}
 
 	/**
@@ -105,16 +152,9 @@ export class ZplCommandSchema {
 	 * @param parameterValues - parameters, in order of the definition provided in the schema 
 	 * @returns a string representing the command with the given parameters
 	 */
-	apply(...parameterValues : any[]) : string {
-		const lastIndex = this.schema.length - 1;
-		const assembledCommand = this.schema.reduce((assembledCommand, parameterSchema, index) => {
-			const value     = parameterValues[index] || '';
-			const delimiter = (index === lastIndex) ? '' : (parameterSchema.delimiter === null || parameterSchema.delimiter === undefined ? ',' : parameterSchema.delimiter);
-
-			return assembledCommand + value + delimiter;
-		}, this.command);
-
-		return assembledCommand;
+	applyAsString(...parameterValues : any[]) : string {
+		const { parameters } = this._apply(parameterValues, false);
+		return parameters.reduce((command, { value, delimiter }) => command + value + delimiter, this.command);
 	}
 
 	/**
@@ -122,7 +162,7 @@ export class ZplCommandSchema {
 	 * 
 	 * @returns a string representation of this command
 	 */
-	toString() {
+	toString() : string {
 		const lastIndex = this.schema.length - 1;
 		return this.schema.reduce((assembledCommand, parameterSchema, index) => {
 			const key       = parameterSchema.key;
@@ -131,4 +171,44 @@ export class ZplCommandSchema {
 			return assembledCommand + key + delimiter;
 		}, this.command);
 	}
+}
+
+export class ZplCommandSet {
+    private _zpl : Array<{ schema : ZplCommandSchema, parameters : any[] }>;
+
+    constructor() {
+        this._zpl = [];
+    }
+
+	/**
+	 * Adds a ZPL schema to set of commands
+	 * 
+	 * @param schema - command scheme
+	 * @param parameters - any number of 
+	 * @returns this object, for chaining
+	 */
+    add(schema : ZplCommandSchema, ...parameters : any[]) : ZplCommandSet {
+        this._zpl.push({ schema, parameters });
+        return this;
+    }
+
+	/**
+	 * Converts command set into a string
+	 * 
+	 * @returns command set in string form
+	 */
+    toString() : string {
+		return this._zpl
+			.map(({ schema, parameters }) => schema.applyAsString(...parameters))
+			.join('');
+    }
+
+	/**
+	 * Converts command set into a buffer
+	 * 
+	 * @returns command set in buffer form
+	 */
+	toBuffer() : Uint8Array {
+		return concatUint8Arrays(...this._zpl.map(({ schema, parameters }) => schema.applyAsBuffer(...parameters)));
+    }
 }
