@@ -50,6 +50,17 @@ export const ZplBarCodeFieldDefault = new ZplCommandSchema('^BY', [
 	{ key : 'h', optional : true, type : TypeIntegerInRange(10, 32000), description : 'wide bar to narrow bar width ratio' },
 ]);
 
+// D Class Commands (Download)
+export const ZplDownloadObjects = new ZplCommandSchema('~DY', [
+	{ key : 'd',    optional : false, type : TypeDriveLocations,            delimiter : ':', description : 'file location' },
+	{ key : 'f',    optional : false, type : TypeAlphanumericString(1,8),   description : 'file name' },
+	{ key : 'b',    optional : false, type : TypeOneOf('A', 'B', 'C', 'P'), description : 'format downloaded in data field' },
+	{ key : 'x',    optional : false, type : TypeOneOf('B','E','G','P','T','X','NRD','PAC','C','F','H'), description : 'extension' },
+	{ key : 't',    optional : false, type : TypeIntegerInRange(0, 9999999), description : 'total number of bytes in file' },
+	{ key : 'w',    optional : false, type : TypeIntegerInRange(0, 9999999), description : 'total number of bytes per row (.GRF images only)' },
+	{ key : 'data', optional : false, type : 'binary',                       description : 'data' },
+]);
+
 // F Class Commands (Field)
 export const ZplFieldBlock = new ZplCommandSchema('^FB', [
     { key : 'a', optional : false, type : TypeIntegerInRange(0, 32000),    description : 'width of text block line (in dots)' },

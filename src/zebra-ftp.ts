@@ -226,7 +226,7 @@ export class ZebraFTPClient {
      * @param data - data to be transferred to the printer (can come as a string, a buffer, a stream)
      * @param filename - name to transfer to the printer
      */
-    async putData(data : string | Buffer | NodeJS.ReadableStream, filename? : string) : Promise<void> {
+    async putData(data : string | Uint8Array | NodeJS.ReadableStream, filename? : string) : Promise<void> {
         return await new Promise(async (resolve) => {
             // Possible race condition between when the socket closes and when the command returns with a 226, wait for both to finish
             let eitherTransferOrCommandComplete = false;
@@ -234,7 +234,7 @@ export class ZebraFTPClient {
             // Push reaction when Zebra Printer reaches out 
             this._responseQueue.push({
                 onResponse(socket) {
-                    if (typeof data === 'string' || data instanceof Buffer) {
+                    if (typeof data === 'string' || data instanceof Uint8Array) {
                         return socket.end(data);
                     }
                     else {
