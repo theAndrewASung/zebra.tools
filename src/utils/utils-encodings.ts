@@ -1,14 +1,19 @@
+import { uint8ArrayToString } from "./utils-buffers";
+
 const BASE_64_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+const BASE_64_CHARCODES = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'.split('').map(c => c.charCodeAt(0));
+const BASE_64_FILLER = '='.charCodeAt(0);
 
 /**
- * Converts a Uint8Array into a base64 string
+ * Converts a Uint8Array into a base64 array
  * 
  * @param array - a Uint8Array
- * @returns a UTF8 encoded string
+ * @returns a UTF8 encoded array
  */
-export function uint8ArrayToBase64String(array : Uint8Array) : string {
-    const b64 = [];
-    for (let i = 0, ilen = array.length; i < ilen; i += 3) {
+export function uint8ArrayToBase64(array : Uint8Array) : Uint8Array {
+    const len : number = array.length;
+    const b64 : Uint8Array = new Uint8Array(Math.ceil(len / 3) * 4);
+    for (let i = 0, j = 0; i < len; i += 3, j += 4) {
         const one   = array[i];
         const two   = array[i + 1];
         const three = array[i + 2];
@@ -25,12 +30,24 @@ export function uint8ArrayToBase64String(array : Uint8Array) : string {
             d = three & 63; // 111111 => 63
         }
 
-        b64.push(BASE_64_CHARS[a]);        // 6-left digits of one
-        b64.push(BASE_64_CHARS[b]);        // 2-right digits of one + 4-left digits of two
-        b64.push(BASE_64_CHARS[c] || '='); // 4-right digits of two + 2-left digits of three
-        b64.push(BASE_64_CHARS[d] || '='); // 6-right digits of three
+        b64.set([
+            BASE_64_CHARCODES[a], // 6-left digits of one
+            BASE_64_CHARCODES[b], // 2-right digits of one + 4-left digits of two
+            BASE_64_CHARCODES[c] || BASE_64_FILLER, // 4-right digits of two + 2-left digits of three
+            BASE_64_CHARCODES[d] || BASE_64_FILLER, // 6-right digits of three
+        ], j);
     }
-    return b64.join('');
+    return b64;
+}
+
+/**
+ * Converts a Uint8Array into a base64 string
+ * 
+ * @param array - a Uint8Array
+ * @returns a UTF8 encoded string
+ */
+export function uint8ArrayToBase64String(array : Uint8Array) : string {
+    return uint8ArrayToString(uint8ArrayToBase64(array));
 }
 
 /**

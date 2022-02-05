@@ -34,13 +34,34 @@ export class ZplPng {
      * @returns import statement as a buffer
      */
     async getImportBuffer() : Promise<Uint8Array> {
+        let zplBuffer : Uint8Array;
+
         const pngBuffer = await fsPromises.readFile(this._filepath);
-        const pngHex    = uint8ArrayToHexString(pngBuffer);
-        const pngSize   = pngBuffer.byteLength;
+
+        const pngSize = pngBuffer.byteLength;
+        const pngData = uint8ArrayToHexString(pngBuffer);
+
+        zplBuffer = ZplDownloadObjects.applyAsBuffer(this._drive, this._name, 'P', 'P', pngSize, null, pngData);
+
+        /** ================================
+         * Base 64 Implementation - Note this not viable because the 16-bit CRC is proprietary according the Zebra website:
+         * https://www.zebra.com/us/en/support-downloads/knowledge-articles/ait/crc-algorithm-used-with-the-dy-command.html
+         *
+         * const pngSize    = pngBuffer.byteLength;
+         *
+         * const crc32Table = computeCRCTable(CRC_POLYNOMIALS.CRC_16_CCITT);
+         * const delimiter  = stringToUint8Array(':');
+         * const pngId      = stringToUint8Array('B64');
+         * const pngEncoded = uint8ArrayToBase64(pngBuffer);
+         * const pngCrc     = stringToUint8Array(computeCRCFromTable(pngEncoded, crc32Table, 16).toString(16));
+         * const pngData    = concatUint8Arrays(delimiter, pngId, delimiter, pngEncoded, delimiter, pngCrc);
+        
+         * zplBuffer = ZplDownloadObjects.applyAsBuffer(this._drive, this._name, 'P', 'P', pngSize, null, pngData);
+         * ================================ **/
 
         return concatUint8Arrays(
             stringToUint8Array('^XA'),
-            ZplDownloadObjects.applyAsBuffer(this._drive, this._name, 'P', 'P', pngSize, null, pngHex),
+            zplBuffer,
             stringToUint8Array('^XZ')
         );
     }

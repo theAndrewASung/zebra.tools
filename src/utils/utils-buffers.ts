@@ -30,3 +30,24 @@ export function concatUint8Arrays(...uint8arrays : Uint8Array[]) : Uint8Array {
 
     return fullArray;
 }
+
+/**
+ * Converts an array into a string.
+ * 
+ * @param array - array to stringify
+ * @returns - string
+ */
+ export function uint8ArrayToString(uint8array : Uint8Array) : string {
+    return String.fromCharCode.apply(null, uint8array);
+}
+
+/**
+ * Converts an array into a number.
+ * 
+ * @param array - array to make numeric
+ * @returns - number
+ */
+ export function uint8ArrayToInteger(uint8array : Uint8Array) : number {
+    const pow = uint8array.length - 1;
+    return uint8array.reduce((prev, curr, index) => prev + (curr * Math.pow(256, pow - index)), 0);
+}
