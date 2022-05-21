@@ -6,28 +6,41 @@ import { ZplDownloadObjects, ZplImageLoad, ZplObjectDelete } from './zebra-zpl-c
 import { uint8ArrayToHexString } from './utils/utils-encodings';
 
 export class ZplPng {
+    private _buffer   : Buffer;
     private _filepath : string;
     private _name     : string;
     private _drive    : string;
 
     /**
      * Object representation of a ZPL PNG (for Node)
-     * @param filepath - path to the PNG file (should be absolute)
+     * @param filepathOrBuffer - path to the PNG file (should be absolute)
      * @param nameOnPrinter - name of the file on the printer, otherwise is the first 8 alphanumeric characters of the file
      */
-    constructor(filepath : string, nameOnPrinter? : string) {
-        const ext = extname(filepath);
+    constructor(filepathOrBuffer : string | Buffer, nameOnPrinter? : string) {
+        this._filepath = null;
+        this._buffer   = null;
 
-        if (ext.toLowerCase() !== '.png') throw new TypeError(`File should be a PNG, got a ${ext}`);
-        if (!existsSync(filepath))        throw new TypeError(`PNG file not found at ${filepath}`);
-        if (nameOnPrinter) {
-            if (/[^A-Z0-9]/i.test(nameOnPrinter)) throw new TypeError('nameOnPrinter argument should be alphanumeric');
-            if (nameOnPrinter.length > 8)         throw new TypeError('nameOnPrinter argument should be 8 characters or less');
+        if (nameOnPrinter) this._name = nameOnPrinter;
+
+        if (filepathOrBuffer instanceof Buffer) {
+            this._buffer = filepathOrBuffer;
+
+            if (!this._name) this._name = 'X' + Date.now().toString(26).toUpperCase().slice(-7);
+        }
+        else {
+            const ext = extname(filepathOrBuffer);
+    
+            if (ext.toLowerCase() !== '.png') throw new TypeError(`File should be a PNG, got a ${ext}`);
+            if (!existsSync(filepathOrBuffer))        throw new TypeError(`PNG file not found at ${filepathOrBuffer}`);
+            if (nameOnPrinter) {
+                if (/[^A-Z0-9]/i.test(nameOnPrinter)) throw new TypeError('nameOnPrinter argument should be alphanumeric');
+                if (nameOnPrinter.length > 8)         throw new TypeError('nameOnPrinter argument should be 8 characters or less');
+            }
+            this._filepath = filepathOrBuffer;
+            if (!this._name) this._name = basename(this._filepath, ext).toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8);
         }
 
-        this._filepath = filepath;
-        this._name     = nameOnPrinter ? nameOnPrinter : (basename(filepath, ext).toUpperCase().replace(/[^A-Z0-9]/g, '').substring(0, 8));
-        this._drive    = 'R';
+        this._drive = 'R';
     }
 
     /**
@@ -36,7 +49,7 @@ export class ZplPng {
     async getImportBuffer() : Promise<Uint8Array> {
         let zplBuffer : Uint8Array;
 
-        const pngBuffer = await fsPromises.readFile(this._filepath);
+        const pngBuffer = this._buffer ? this._buffer : await fsPromises.readFile(this._filepath);
 
         const pngSize = pngBuffer.byteLength;
         const pngData = uint8ArrayToHexString(pngBuffer);
