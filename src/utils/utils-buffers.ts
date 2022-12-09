@@ -5,7 +5,7 @@
  * @returns - string as a buffer
  */
 export function stringToUint8Array(string : string) : Uint8Array {
-    const array = [];
+    const array: number[] = [];
     for (let i = 0, ilen = string.length; i < ilen; i++) {
         array.push(string.charCodeAt(i));
     }
