@@ -1,6 +1,6 @@
 {
   "name": "zebra.tools",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Tooling for working with Zebra printers.",
   "main": "index.js",
   "scripts": {
