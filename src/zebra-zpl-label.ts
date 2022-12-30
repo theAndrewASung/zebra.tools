@@ -2,7 +2,7 @@ import { QRErrorCorrectionLevel, QRDataInputMode, QRCodeSizesByVersion, getQRCod
 import { CSSPixelsToDots, inchesToDots } from './utils/utils-units';
 import { concatUint8Arrays } from './utils/utils-buffers';
 
-import { ZplCommandSet } from './zebra-zpl-schema';
+import { ZplCommandSet } from './commands/command-set';
 import {
     ZplStartFormat,
     ZplEndFormat,
@@ -26,7 +26,7 @@ import {
     ZplGraphicCircle,
     ZplGraphicEllipse,
     ZplFieldReversePrint,
-} from './zebra-zpl-commands';
+} from './commands';
 
 type orientation = 'normal'|'top-down'|'upside-down'|'bottom-up';
 const OrientationFromHumanReadable : { [key : string] : string } =
