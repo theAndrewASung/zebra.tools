@@ -1,12 +1,13 @@
 import { concatUint8Arrays } from "../utils/utils-buffers";
 import { ZplCommandTemplate, ZplCommandParams } from "./command-template";
 
+type ZplCommand<T extends ZplCommandParams> = { schema : ZplCommandTemplate<T>, params : T }
 export class ZplCommandSet {
-    private _zpl : Array<{ schema : ZplCommandTemplate<any>, params : any }>;
+	private _zpl : Array<ZplCommand<any>>;
 
-    constructor() {
-        this._zpl = [];
-    }
+	constructor(zplCommantSet? : ZplCommandSet) {
+		this._zpl = zplCommantSet?._zpl.slice() ?? [];
+	}
 
 	/**
 	 * Adds a ZPL schema to set of commands
@@ -15,10 +16,10 @@ export class ZplCommandSet {
 	 * @param parameters - any number of 
 	 * @returns this object, for chaining
 	 */
-    add<T extends ZplCommandParams>(schema : ZplCommandTemplate<T>, params : T) : ZplCommandSet {
-      this._zpl.push({ schema, params });
-      return this;
-    }
+	runCommand<T extends ZplCommandParams>(schema : ZplCommandTemplate<T>, params? : T) {
+		this._zpl.push({ schema, params });
+		return this;
+	}
 
 	/**
 	 * Converts command set into a string
@@ -38,5 +39,5 @@ export class ZplCommandSet {
 	 */
 	getCommandBuffer() : Uint8Array {
 		return concatUint8Arrays(...this._zpl.map(({ schema, params }) => schema.getCommandBuffer(params)));
-    }
+  }
 }

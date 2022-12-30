@@ -148,7 +148,7 @@ export const ZplFieldOrientation  = new ZplCommandTemplate<{
 	r: FieldOrientation,
 	z: number,
 }>('^FWr,z', {
-  r : { type : FieldOrientations,     description : 'rotate field' },
+  r : { type : FieldOrientations,    description : 'rotate field' },
   z : { type : IntegerBetween(0, 2), description : 'justification' },
 });
 export const ZplComment = new ZplCommandTemplate<{ c: string }>('^FXc', {
